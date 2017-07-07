@@ -1,7 +1,10 @@
-runtime: python27
+runtime: python-compat
+env: flex
+entrypoint: gunicorn -b :$PORT main:app
 api_version: 1
 threadsafe: true
-
 handlers:
 - url: /.*
+  secure: never
+  login: optional
   script: main.app
