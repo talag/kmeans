@@ -1,8 +1,9 @@
-# coding: utf-8
+# coding: utf-7
 
 import numpy as np
 import random
 import math
+import urllib
 
 # Kmeans algorithm:
 # fill 'cluster' column in the given dataset with k clusters
@@ -34,6 +35,7 @@ class KMeans(object):
         return np.array([points[labels == k].mean(axis=0) for k in range(centroids.shape[0])])
     
     def kmeans(self, points):
+	points = np.array(points)
         # first step: initialization: generate k random clusters 
         centroids = self._random_centroids(points)
     
@@ -67,56 +69,31 @@ class KMeans(object):
         points = np.c_[points,labels] 
         return points
 
-def createRandomInput(len):
-    points = np.random.uniform(low=0.0, high=100.0, size=(len,2))
-    return points
-
-    #points, k, max_iter = handleInput()
-    #if max_iter == None:
-    #    max_iter = 300
-    #if k == None:
-    #    k = 4
-    #if max_iter <= 0:
-    #    raise ValueError("Number of iterations should be a positive number, got %d instead" % max_iter)
-    #if k > n_samples:
-    #    raise ValueError( "n_samples=%d should be larger than k=%d" % (n_samples, k))
-#points = createRandomInput(100)
-#points = KMeans(k=3, max_iter=100).kmeans(points)
-
 import webapp2
 
-def main(argv):
-    #points, k, max_iter = handleInput()
-    #if max_iter == None:
-    #    max_iter = 300
-    #if k == None:
-    #    k = 4
-    #if max_iter <= 0:
-    #    raise ValueError("Number of iterations should be a positive number, got %d instead" % max_iter)
-    #if k > n_samples:
-    #    raise ValueError( "n_samples=%d should be larger than k=%d" % (n_samples, k))
-
-    #points = createRandomInput(100)
-    #centroids, labels = kmeans(points)
-    #print labels
-
 class Labels (webapp2.RequestHandler):
-        def post(self):
-                #points = createRandomInput(100)
-                #centroids, labels = kmeans(points)
+	def _parse_input_data(self, points):
+		points = urllib.unquote_plus(points).replace(' ','')
+		#remove '[]' brackets
+		points = points[1:-2]
+		points_list = points.split("=&\\n")
+    		new_list = []
+    		for i in range(len(points_list)):
+        		# remove trailing ';'
+        		if points_list[i][-1]==';':
+            			points_list[i] = points_list[i][:-1]
+        		new_list.append(tuple(float(x) for x in points_list[i].split(',')))
+		return new_list
+
+	def post(self):
                 k = self.request.get('num_clusters', default_value=4)
                 max_iter = self.request.get('max_iterations', default_value=300)
-                points = self.request.body
+                points = self._parse_input_data(self.request.body)
                 self.response.headers['Content-Type'] = 'text/plain'
-                self.response.write('k is {k}, max_iter is {max_iter}, points are {points}'.format(k=k, max_iter=max_iter, points=points))
+                labeled_points = KMeans(k, max_iter).kmeans(points)
+		self.response.write('k is {k}, max_iter is {max_iter}, points are {points}\n'.format(k=k, max_iter=max_iter, points=labeled_points))
 
 
 app = webapp2.WSGIApplication([
     ('/clustering/labels', Labels),
 ], debug=True)
-
-#if __name__ == "__main__":
-#    main(sys.argv)
-
-
-
