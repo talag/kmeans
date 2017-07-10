@@ -24,7 +24,7 @@ class KMeans(object):
         centroids = points[np.random.choice(points.shape[0], self.k, replace=False), :]
         return centroids
 
-    # returns an array with indexes to the nearest centroid for each point in points
+        # returns an array with indexes to the nearest centroid for each point in points
     def _nearest_neigbours(self, points, centroids):
         # add new dimension to centroids, use broadcasting to substract all centroids from each point,
         # such that each sub space of credentials contains results for one point vs. centroids
@@ -62,7 +62,6 @@ class KMeans(object):
                 # convergence test
                 if (np.array_equal(centroids, old_centroids)):
                         clusters_updated = False
-
                 i += 1
 
         # the output labels should start from index 1
@@ -90,9 +89,9 @@ class Labels (webapp2.RequestHandler):
                 output_str = '['
                 for i in points:
                         #convert each inner array to string and add ';'
-                        output_str += np.array2string(i, separator = ', ', formatter = {'float_kind':lambda x: "%.1f" % x})[1:-1] + ';'
+                        output_str += '{:.1f},{:.1f},{:d}'.format(i[0],i[1],int(i[2])) + ';'
                 #remove last ';' and add closing ']'
-                output_str = output_str[:-1] + ']'
+                output_str = output_str[:-1] + ']'         
                 return output_str
 
         def post(self):
@@ -111,7 +110,7 @@ class Labels (webapp2.RequestHandler):
                 try:
                         labeled_points = KMeans(k, max_iter).kmeans(points)
                         labeled_points = self._points_str_for_output(labeled_points)
-                        self.response.write('<html><body>{points}</html></body>\n'.format(points=labeled_points))
+                        self.response.write('{points}'.format(points=labeled_points))
                 except Exception as err:
                         handle_500(self.request, self.response, err)
                         return
