@@ -4,6 +4,7 @@ import math
 import urllib
 import webapp2
 import logging
+from paste import httpserver
 
 # Kmeans algorithm:
 # fill 'cluster' column in the given dataset with k clusters
@@ -62,7 +63,7 @@ class KMeans(object):
                 if (np.array_equal(centroids, old_centroids)):
                         clusters_updated = False
 
-                i = 1
+                i += 1
 
         # the output labels should start from index 1
         labels = np.add(labels, 1)
@@ -75,11 +76,16 @@ class Labels (webapp2.RequestHandler):
 
         def _parse_input_data(self, points):
                 #remove '[]' brackets and convert to list
+                if points[0] != '[' or points[-1] != ']':
+                        raise Exception('Data point should be wrapped with brackets')
+                        return
+
                 points_list = points[1:-1].split(";")
                 new_list = []
                 for i in range(len(points_list)):
                         new_list.append(list(float(x) for x in points_list[i].split(',')))
                 return new_list
+
         def _points_str_for_output(self, points):
                 output_str = '['
                 for i in points:
@@ -88,34 +94,37 @@ class Labels (webapp2.RequestHandler):
                 #remove last ';' and add closing ']'
                 output_str = output_str[:-1] + ']'
                 return output_str
+
         def post(self):
                 try:
                         # initialize with request paramenters
-                        k = self.request.get('num_clusters', default_value = self.DEFAULT_K)
-                        max_iter = self.request.get('max_iterations', default_value = self.DEFAULT_MAX_ITER)
+                        k = int(self.request.get('num_clusters', default_value = self.DEFAULT_K))
+                        max_iter = int(self.request.get('max_iterations', default_value = self.DEFAULT_MAX_ITER))
                         points = self._parse_input_data(self.request.body)
+
                 except Exception as err:
-                        self._handle_400(self.request, self.response, err)
+                        handle_400(self.request, self.response, err)
+                        return
 
                 # prepare the response
                 self.response.headers['Content-Type'] = 'text/plain'
                 try:
                         labeled_points = KMeans(k, max_iter).kmeans(points)
                         labeled_points = self._points_str_for_output(labeled_points)
+                        self.response.write('<html><body>{points}</html></body>\n'.format(points=labeled_points))
                 except Exception as err:
-                        self._handle_500(self.request, self.response, err)
+                        handle_500(self.request, self.response, err)
+                        return
 
-                self.response.write('{points}\n'.format(k=k, max_iter=max_iter, points=labeled_points))
+def handle_400(request, response, exception):
+        logging.exception(exception)
+        response.write('Bad Request!')
+        response.set_status(400)
 
-        def _handle_400(self, request, response, exception):
-                logging.exception(exception)
-                response.write('Bad Request!')
-                self.abort(400)
-
-        def _handle_500(self, request, response, exception):
-                logging.exception(exception)
-                response.write('A server error occurred!')
-                self.abort(500)
+def handle_500(request, response, exception):
+        logging.exception(exception)
+        response.write('A server error occurred!')
+        response.set_status(500)
 
 app = webapp2.WSGIApplication([
     ('/clustering/labels', Labels),
@@ -123,8 +132,10 @@ app = webapp2.WSGIApplication([
 
 
 def main():
-    from paste import httpserver
-    httpserver.serve(app, host='0.0.0.0', port='80')
+        app.error_handlers[400] = handle_400
+        app.error_handlers[500] = handle_500
+        httpserver.serve(app, host='0.0.0.0', port='80')
 
 if __name__ == '__main__':
     main()
+
